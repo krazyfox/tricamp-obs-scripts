@@ -1,3 +1,15 @@
+
+-- zeit auf sekunden 
+-- hardcoded variables -> cText, curExText, nextExText, cBack, curExBack, nextExBack
+-- ausblenden am ende aller elemente
+-- leeren text ausblenden
+--
+-- validierung
+-- pause button
+-- stream dec
+
+
+
 obs           = obslua
 time_source_name   = ""
 current_source_name   = ""
@@ -26,16 +38,15 @@ function update_element(source_name,text)
 	if source_name == nil then
 		return
 	end
-		print (source_name)
-		print (text)
-		local currentSource = obs.obs_get_source_by_name(source_name)
-		if currentSource ~= nil then
-			local cSsettings = obs.obs_data_create()
-			obs.obs_data_set_string(cSsettings, "text", text)
-			obs.obs_source_update(currentSource, cSsettings)
-			obs.obs_data_release(cSsettings)
-			obs.obs_source_release(currentSource)
-		end
+
+	local currentSource = obs.obs_get_source_by_name(source_name)
+	if currentSource ~= nil then
+		local cSsettings = obs.obs_data_create()
+		obs.obs_data_set_string(cSsettings, "text", text)
+		obs.obs_source_update(currentSource, cSsettings)
+		obs.obs_data_release(cSsettings)
+		obs.obs_source_release(currentSource)
+	end
 
 end
 
@@ -51,12 +62,13 @@ function set_time_text()
 	--	text = stop_text
 	--end
 
+
 	if text ~= last_text then
 
 		update_element(time_source_name,text)
 		update_element(current_source_name,split(event_list[cur_event_nr],";")[2])
 		update_element(next_source_name,split(event_list[cur_event_nr+1],";")[2])
-		
+
 	end
 
 	last_text = text
@@ -66,13 +78,23 @@ function timer_callback()
 	cur_seconds = cur_seconds - 1
 	if cur_seconds < 0 then
 		--obs.remove_current_callback()
-		
+
 		cur_event_nr =cur_event_nr+1
 		cur_seconds = tonumber(split(event_list[cur_event_nr],";")[1])
 	end
+	--print("length and next event nr")
+	--print (array_length(event_list))
+	--print (cur_event_nr+1)
+
+	if array_length(event_list) ==  cur_event_nr+1 then
+		--print ("finish")
+		obs.remove_current_callback()
+		return
+	end
+
 
 	set_time_text()
-	
+
 end
 
 function activate(activating)
@@ -138,7 +160,7 @@ function script_properties()
 
 
 	local p = obs.obs_properties_add_list(props, "timeSource", "Time Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
-	
+
 
 	local sources = obs.obs_enum_sources()
 	if sources ~= nil then
@@ -148,17 +170,17 @@ function script_properties()
 				local name = obs.obs_source_get_name(source)
 				print(name)
 
-				 obs.obs_property_list_add_string(p, name, name)
-				end
+				obs.obs_property_list_add_string(p, name, name)
+			end
 		end
 	end
 	obs.source_list_release(sources)
 
 
 
-    obs.obs_properties_add_list(props, "currentTextSource", "Current Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
-    
-    obs.obs_properties_add_list(props, "nextTextSource", "Next Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+	obs.obs_properties_add_list(props, "currentTextSource", "Current Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+
+	obs.obs_properties_add_list(props, "nextTextSource", "Next Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
 	obs.obs_properties_add_text(props, "stop_text", "Events", obs.OBS_TEXT_MULTILINE)
 	obs.obs_properties_add_button(props, "reset_button", "Reset Timer", reset_button_clicked)
 
@@ -175,26 +197,26 @@ end
 function script_update(settings)
 	activate(false)
 
-	
+
 	time_source_name = obs.obs_data_get_string(settings, "timeSource")
 	next_source_name = obs.obs_data_get_string(settings, "nextTextSource")
 	current_source_name = obs.obs_data_get_string(settings, "currentTextSource")
 
-	
-	
-	stop_text = obs.obs_data_get_string(settings, "stop_text")
-    event_list = split(stop_text,"\r\n")
 
-   
- 
-    total_seconds = tonumber(split(event_list[cur_event_nr],";")[1])
- 
+
+	stop_text = obs.obs_data_get_string(settings, "stop_text")
+	event_list = split(stop_text,"\r\n")
+
+
+
+	total_seconds = tonumber(split(event_list[cur_event_nr],";")[1])
+
 	reset(true)
 end
 
 -- A function named script_defaults will be called to set the default settings
 function script_defaults(settings)
-		obs.obs_data_set_default_string(settings, "stop_text", "5;10 Burbees\r\n3;erste pause\r\n5;30 Burbees\r\n3;zweite pause\r\n5;10 Burbees\r\n1;Ende\r\n0; ")
+	obs.obs_data_set_default_string(settings, "stop_text", "5;10 Burbees\r\n3;erste pause\r\n5;30 Burbees\r\n3;zweite pause\r\n5;10 Burbees\r\n1;Ende\r\n0; ")
 end
 
 -- A function named script_save will be called when the script is saved
@@ -228,12 +250,19 @@ function script_load(settings)
 end
 
 function split (inputstr, sep)
-        if sep == nil then
-                sep = "%s"
-        end
-        local t={}
-        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-                table.insert(t, str)
-        end
-        return t
+	if sep == nil then
+		sep = "%s"
+	end
+	local t={}
+	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+		table.insert(t, str)
+	end
+	return t
+end
+
+
+function array_length(T)
+	local count = 0
+	for _ in pairs(T) do count = count + 1 end
+	return count
 end
