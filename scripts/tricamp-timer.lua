@@ -1,5 +1,4 @@
-
--- zeit auf sekunden 
+-- TODOs
 -- hardcoded variables -> cText, curExText, nextExText, cBack, curExBack, nextExBack
 -- ausblenden am ende aller elemente
 -- leeren text ausblenden
@@ -13,12 +12,11 @@
 obs           = obslua
 time_source_name   = ""
 current_source_name   = ""
-next_source_name   = ""
+next_source_name = ""
 total_seconds = 0
-
 cur_event_nr = 1
 cur_seconds   = 0
-last_text     = ""
+last_cur_seconds = ""
 stop_text     = ""
 activated     = false
 
@@ -52,40 +50,22 @@ end
 
 -- Function to set the time text
 function set_time_text()
-	local seconds       = math.floor(cur_seconds % 60)
-	local total_minutes = math.floor(cur_seconds / 60)
-	local minutes       = math.floor(total_minutes % 60)
-	local hours         = math.floor(total_minutes / 60)
-	local text          = string.format("%2d:%02d", minutes, seconds)
 
-	--if cur_seconds < 1 then
-	--	text = stop_text
-	--end
-
-
-	if text ~= last_text then
-
-		update_element(time_source_name,text)
+	if cur_seconds ~= last_cur_seconds then
+		update_element(time_source_name,cur_seconds)
 		update_element(current_source_name,split(event_list[cur_event_nr],";")[2])
 		update_element(next_source_name,split(event_list[cur_event_nr+1],";")[2])
-
 	end
 
-	last_text = text
+	last_cur_seconds = cur_seconds
 end
 
 function timer_callback()
 	cur_seconds = cur_seconds - 1
 	if cur_seconds < 0 then
-		--obs.remove_current_callback()
-
 		cur_event_nr =cur_event_nr+1
 		cur_seconds = tonumber(split(event_list[cur_event_nr],";")[1])
 	end
-	--print("length and next event nr")
-	--print (array_length(event_list))
-	--print (cur_event_nr+1)
-
 	if array_length(event_list) ==  cur_event_nr+1 then
 		--print ("finish")
 		obs.remove_current_callback()
