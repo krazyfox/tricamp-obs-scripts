@@ -1,5 +1,4 @@
 -- TODOs
--- hardcoded variables -> cText, curExText, nextExText, cBack, curExBack, nextExBack
 -- ausblenden am ende aller elemente
 -- leeren text ausblenden
 --
@@ -7,29 +6,32 @@
 -- pause button
 -- stream dec
 
-
-
 obs           = obslua
-time_source_name   = ""
-current_source_name   = ""
-next_source_name = ""
+
+
 total_seconds = 0
 cur_event_nr = 1
 cur_seconds   = 0
 last_cur_seconds = ""
-stop_text     = ""
+events_text     = ""
 activated     = false
-
 event_list={}
 
 hotkey_id     = obs.OBS_INVALID_HOTKEY_ID
 
+CURRENT_EXERCISE_TEXTFIELD_NAME = "currentExerciseTextfield"
+NEXT_EXERCISE_TEXTFIELD_NAME = "nextExerciseTextfield"
+CURRENT_EXERCISE_IMAGE_NAME = "currentExerciseImage"
+NEXT_EXERCISE_IMAGE_NAME = "nextExerciseImage"
+
+CURRENT_SECONDS_TEXTFIELD_NAME = "currentSecondsTextfield"
+CURRENT_SECONDS_IMAGE_NAME = "currentSecondsImage"
+
+EVENT_ITEM_SEPARATOR = ";"
+EVENT_SEPARATOR = "\r\n"
 
 -- Function to update element
 function update_element(source_name,text)
-
-
-
 	if text == nil then
 		return
 	end
@@ -52,9 +54,9 @@ end
 function set_time_text()
 
 	if cur_seconds ~= last_cur_seconds then
-		update_element(time_source_name,cur_seconds)
-		update_element(current_source_name,split(event_list[cur_event_nr],";")[2])
-		update_element(next_source_name,split(event_list[cur_event_nr+1],";")[2])
+		update_element(CURRENT_SECONDS_TEXTFIELD_NAME,cur_seconds)
+		update_element(CURRENT_EXERCISE_TEXTFIELD_NAME,split(event_list[cur_event_nr],EVENT_ITEM_SEPARATOR)[2])
+		update_element(NEXT_EXERCISE_TEXTFIELD_NAME,split(event_list[cur_event_nr+1],EVENT_ITEM_SEPARATOR)[2])
 	end
 
 	last_cur_seconds = cur_seconds
@@ -64,7 +66,7 @@ function timer_callback()
 	cur_seconds = cur_seconds - 1
 	if cur_seconds < 0 then
 		cur_event_nr =cur_event_nr+1
-		cur_seconds = tonumber(split(event_list[cur_event_nr],";")[1])
+		cur_seconds = tonumber(split(event_list[cur_event_nr],EVENT_ITEM_SEPARATOR)[1])
 	end
 	if array_length(event_list) ==  cur_event_nr+1 then
 		--print ("finish")
@@ -118,7 +120,7 @@ function reset(pressed)
 	end
 
 	activate(false)
-	local source = obs.obs_get_source_by_name(time_source_name)
+	local source = obs.obs_get_source_by_name(CURRENT_SECONDS_TEXTFIELD_NAME)
 	if source ~= nil then
 		local active = obs.obs_source_active(source)
 		obs.obs_source_release(source)
@@ -138,7 +140,7 @@ end
 function script_properties()
 	local props = obs.obs_properties_create()
 
-
+--[[
 	local p = obs.obs_properties_add_list(props, "timeSource", "Time Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
 
 
@@ -155,13 +157,8 @@ function script_properties()
 		end
 	end
 	obs.source_list_release(sources)
-
-
-
-	obs.obs_properties_add_list(props, "currentTextSource", "Current Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
-
-	obs.obs_properties_add_list(props, "nextTextSource", "Next Text Source", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
-	obs.obs_properties_add_text(props, "stop_text", "Events", obs.OBS_TEXT_MULTILINE)
+	]]
+	obs.obs_properties_add_text(props, "events_text", "Events", obs.OBS_TEXT_MULTILINE)
 	obs.obs_properties_add_button(props, "reset_button", "Reset Timer", reset_button_clicked)
 
 	return props
@@ -170,33 +167,28 @@ end
 -- A function named script_description returns the description shown to
 -- the user
 function script_description()
-	return "Sets a text source to act as a countdown timer when the source is active.\n\nMade by Jim\n\nUpdated by CK"
+	return "Prepare 3 textfields with following names\n\n"..
+			"* " .. CURRENT_SECONDS_TEXTFIELD_NAME .. "\n" ..
+			"* " .. CURRENT_EXERCISE_TEXTFIELD_NAME .. "\n" ..
+			"* " .. NEXT_EXERCISE_TEXTFIELD_NAME .. "\n" ..
+			"\n" .. "Prepare 3 images with following names\n\n"..
+			"* " .. CURRENT_SECONDS_IMAGE_NAME .. "\n" ..
+			"* " .. CURRENT_EXERCISE_IMAGE_NAME .. "\n" ..
+			"* " .. NEXT_EXERCISE_IMAGE_NAME
 end
 
 -- A function named script_update will be called when settings are changed
 function script_update(settings)
 	activate(false)
-
-
-	time_source_name = obs.obs_data_get_string(settings, "timeSource")
-	next_source_name = obs.obs_data_get_string(settings, "nextTextSource")
-	current_source_name = obs.obs_data_get_string(settings, "currentTextSource")
-
-
-
-	stop_text = obs.obs_data_get_string(settings, "stop_text")
-	event_list = split(stop_text,"\r\n")
-
-
-
-	total_seconds = tonumber(split(event_list[cur_event_nr],";")[1])
-
+	events_text = obs.obs_data_get_string(settings, "events_text")
+	event_list = split(events_text, EVENT_SEPARATOR)
+	total_seconds = tonumber(split(event_list[cur_event_nr],EVENT_ITEM_SEPARATOR)[1])
 	reset(true)
 end
 
 -- A function named script_defaults will be called to set the default settings
 function script_defaults(settings)
-	obs.obs_data_set_default_string(settings, "stop_text", "5;10 Burbees\r\n3;erste pause\r\n5;30 Burbees\r\n3;zweite pause\r\n5;10 Burbees\r\n1;Ende\r\n0; ")
+	obs.obs_data_set_default_string(settings, "events_text", "5;10 Burbees\r\n3;erste pause\r\n5;30 Burbees\r\n3;zweite pause\r\n5;10 Burbees\r\n1;Ende\r\n0; ")
 end
 
 -- A function named script_save will be called when the script is saved
