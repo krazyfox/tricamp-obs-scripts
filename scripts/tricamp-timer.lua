@@ -7,10 +7,10 @@
 -- stream dec
 
 obs           = obslua
-
+logEnabled = false
 
 total_seconds = 0
-cur_event_nr = 1
+cur_event_nr = 3
 cur_seconds   = 0
 last_cur_seconds = ""
 events_text     = ""
@@ -55,26 +55,36 @@ function set_time_text()
 
 	if cur_seconds ~= last_cur_seconds then
 		update_element(CURRENT_SECONDS_TEXTFIELD_NAME,cur_seconds)
+		do_log ("update ".. CURRENT_EXERCISE_TEXTFIELD_NAME )
 		update_element(CURRENT_EXERCISE_TEXTFIELD_NAME,split(event_list[cur_event_nr],EVENT_ITEM_SEPARATOR)[2])
-		update_element(NEXT_EXERCISE_TEXTFIELD_NAME,split(event_list[cur_event_nr+1],EVENT_ITEM_SEPARATOR)[2])
+		do_log ("update ".. NEXT_EXERCISE_TEXTFIELD_NAME )
+		update_element(NEXT_EXERCISE_TEXTFIELD_NAME,split(event_list[cur_event_nr],EVENT_ITEM_SEPARATOR)[3])
 	end
-
+	do_log ("set_time_text() done ")
 	last_cur_seconds = cur_seconds
 end
 
 function timer_callback()
+	do_log ("timer_callback () start")
 	cur_seconds = cur_seconds - 1
+
+	do_log ("event nr ".. cur_event_nr .. "/" .. array_length(event_list))
+
+
 	if cur_seconds < 0 then
-		cur_event_nr =cur_event_nr+1
+		cur_event_nr = cur_event_nr+1
+
+		if array_length(event_list) == cur_event_nr -1  then
+			do_log ("finish")
+			obs.remove_current_callback()
+			obs.timer_remove(timer_callback)
+			return
+		end
+
+		do_log ("split event nr ".. cur_event_nr  .. " -- "..  event_list[cur_event_nr])
 		cur_seconds = tonumber(split(event_list[cur_event_nr],EVENT_ITEM_SEPARATOR)[1])
 	end
-	if array_length(event_list) ==  cur_event_nr+1 then
-		--print ("finish")
-		obs.remove_current_callback()
-		return
-	end
-
-
+	do_log ("call setTimeText")
 	set_time_text()
 
 end
@@ -179,6 +189,7 @@ end
 
 -- A function named script_update will be called when settings are changed
 function script_update(settings)
+	do_log ("script_update () start")
 	activate(false)
 	events_text = obs.obs_data_get_string(settings, "events_text")
 	event_list = split(events_text, EVENT_SEPARATOR)
@@ -237,4 +248,11 @@ function array_length(T)
 	local count = 0
 	for _ in pairs(T) do count = count + 1 end
 	return count
+end
+
+function do_log (str)
+
+	if logEnabled then
+		print( str)
+	end
 end
