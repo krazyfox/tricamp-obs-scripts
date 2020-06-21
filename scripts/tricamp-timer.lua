@@ -1,6 +1,5 @@
 -- TODOs
 
--- validierung
 -- hotkeys
 -- stream deck
 
