@@ -9,7 +9,6 @@ logEnabled = true
 logDebugEnabled = false
 logInfoEnabled = true
 
-
 cur_event_nr = 1
 cur_seconds = 0
 last_cur_seconds = ""
@@ -58,18 +57,18 @@ function update_element(source_name, text)
         obs.obs_data_release(cSsettings)
         obs.obs_source_release(currentSource)
     end
-
+    do_log_debug("update_element() done")
 end
 
 -- Function to set the time text
 function set_time_text()
-
+    do_log_debug("set_time_text() ")
     if cur_seconds ~= last_cur_seconds then
         update_element(CURRENT_SECONDS_TEXTFIELD_NAME, cur_seconds)
         do_log_debug("update " .. CURRENT_EXERCISE_TEXTFIELD_NAME)
-        update_element(CURRENT_EXERCISE_TEXTFIELD_NAME, split(event_list[cur_event_nr], EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__CURRENT_TEXT])
+        update_element(CURRENT_EXERCISE_TEXTFIELD_NAME, getCurrentEvent().currentExercise)
         do_log_debug("update " .. NEXT_EXERCISE_TEXTFIELD_NAME)
-        update_element(NEXT_EXERCISE_TEXTFIELD_NAME, split(event_list[cur_event_nr], EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__NEXT_TEXT])
+        update_element(NEXT_EXERCISE_TEXTFIELD_NAME, getCurrentEvent().nextExercise)
     end
     do_log_debug("set_time_text() done ")
     last_cur_seconds = cur_seconds
@@ -79,9 +78,11 @@ function timer_callback()
     do_log_debug("timer_callback () start")
     cur_seconds = cur_seconds - 1
 
-    do_log_debug("info","event nr " .. cur_event_nr .. "/" .. array_length(event_list))
-
     do_log_debug("event nr " .. cur_event_nr .. "/" .. array_length(event_list))
+
+    if (cur_seconds % 5 == 0) then
+        do_log_info("Time " .. tostring(cur_seconds) .. "s")
+    end
 
     if cur_seconds < 0 then
         cur_event_nr = cur_event_nr + 1
@@ -92,26 +93,21 @@ function timer_callback()
             do_log_info("finish")
             return
         end
-        do_log_info("new event {" .. event_list[cur_event_nr].."}" )
-        do_log_debug("split event nr " .. cur_event_nr .. " -- " .. event_list[cur_event_nr])
+        do_log_info("new event {" .. getCurrentEvent().currentExercise .. "}")
 
-        cur_seconds = getSecondsOfCurrentEvent()
-        set_tricampItems_visible(getVisibilityOfCurrentEvent())
+        cur_seconds = getCurrentEvent().seconds
+        set_tricampItems_visible(getCurrentEvent().isVisible)
     end
     do_log_debug("call setTimeText")
     set_time_text()
 
 end
 
-function getVisibilityOfCurrentEvent()
+function tovisibiltytext(event)
 
-    local currentEvent = event_list[cur_event_nr]
-    local currentEventArr = split(currentEvent, EVENT_ITEM_SEPARATOR)
-    return tovisibiltytext(currentEventArr[EVENT_ITEM_POSITION__VISIBILITY])
+    do_log_debug(event)
 
-end
-
-function tovisibiltytext(str)
+    local str = split(event, EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__VISIBILITY]
 
     if (str == "show") then
         return true
@@ -120,8 +116,30 @@ function tovisibiltytext(str)
         return false
     end
 
-    print(str .. "is not valid. Must be show or hide")
+    do_log(str .. " is not valid. Must be show or hide")
 
+end
+
+function getCurrentEvent()
+    return event_list[cur_event_nr]
+end
+
+function toNextExerciseText(eventString)
+    local nextEx = split(eventString, EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__NEXT_TEXT]
+    if (nextEx == nil) then
+        return ""
+    else
+        return nextEx
+    end
+end
+
+function toCurrentExerciseText(eventString)
+    local curEx = split(eventString, EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__CURRENT_TEXT]
+    if (curEx == nil) then
+        return ""
+    else
+        return curEx
+    end
 end
 
 function activate(activating)
@@ -134,7 +152,7 @@ function activate(activating)
 
     if activating then
         obs.timer_add(timer_callback, 1000)
-        set_tricampItems_visible(getVisibilityOfCurrentEvent())
+        set_tricampItems_visible(getCurrentEvent().isVisible)
         set_time_text()
     else
         obs.timer_remove(timer_callback)
@@ -142,12 +160,30 @@ function activate(activating)
 end
 
 function restart()
+    do_log_info("Re-(Start)")
+
+    event_list = {}
+    local eventsList = split(events_text, EVENT_SEPARATOR)
+    for i = 1, array_length(eventsList) do
+        local eventString = eventsList[i]
+
+        do_log_debug("do parse eventString ".. eventString)
+        event_list[i] = {
+            seconds = getSecondsOfEvent(eventString),
+            isVisible = tovisibiltytext(eventString),
+            currentExercise = toCurrentExerciseText(eventString),
+            nextExercise = toNextExerciseText(eventString)
+        }
+    end
+    do_log_info("Events are valid.")
+
     cur_event_nr = 1
-    cur_seconds = getSecondsOfCurrentEvent()
+    cur_seconds = getCurrentEvent().seconds
+
     activate(false)
     activate(true)
-    do_log_info("Re-(Start)")
-    do_log_info("new event {" .. event_list[cur_event_nr].."}" )
+
+    do_log_info("new event {" .. getCurrentEvent().currentExercise .. "}")
 
 end
 
@@ -221,17 +257,17 @@ end
 -- A function named script_update will be called when settings are changed
 function script_update(settings)
     do_log_debug("script_update (" .. tostring(settings) .. ")")
-    activate(false)
+    --  activate(false)
     events_text = obs.obs_data_get_string(settings, "events_text")
-    event_list = split(events_text, EVENT_SEPARATOR)
 
-    local event = {name="x", bla="y"}
-    do_log_debug(event.name)
-    cur_seconds = getSecondsOfCurrentEvent()
 end
 
 function getSecondsOfCurrentEvent ()
     return tonumber(split(event_list[cur_event_nr], EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__SECONDS])
+end
+
+function getSecondsOfEvent (event)
+    return tonumber(split(event, EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__SECONDS])
 end
 
 -- A function named script_defaults will be called to set the default settings
@@ -324,13 +360,13 @@ function starts_with(str, start)
     return str:sub(1, #start) == start
 end
 
-function do_log_debug ( str)
+function do_log_debug (str)
     if logDebugEnabled then
         do_log(str)
     end
 end
 
-function do_log_info ( str)
+function do_log_info (str)
     if logInfoEnabled then
         do_log(str)
     end
