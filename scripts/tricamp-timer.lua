@@ -5,7 +5,10 @@
 -- stream deck
 
 obs = obslua
-logEnabled = false
+logEnabled = true
+logDebugEnabled = false
+logInfoEnabled = true
+
 
 cur_event_nr = 1
 cur_seconds = 0
@@ -37,7 +40,7 @@ EVENT_ITEM_POSITION__NEXT_TEXT = 4
 -- Function to update element
 function update_element(source_name, text)
 
-    do_log("update_element")
+    do_log_debug("update_element")
 
     if text == nil then
         text = " "
@@ -46,7 +49,7 @@ function update_element(source_name, text)
     if source_name == nil then
         return
     end
-    do_log("update_element(\"" .. source_name .. "\", \"" .. text .. "\")")
+    do_log_debug("update_element(\"" .. source_name .. "\", \"" .. text .. "\")")
     local currentSource = obs.obs_get_source_by_name(source_name)
     if currentSource ~= nil then
         local cSsettings = obs.obs_data_create()
@@ -63,38 +66,39 @@ function set_time_text()
 
     if cur_seconds ~= last_cur_seconds then
         update_element(CURRENT_SECONDS_TEXTFIELD_NAME, cur_seconds)
-        do_log("update " .. CURRENT_EXERCISE_TEXTFIELD_NAME)
+        do_log_debug("update " .. CURRENT_EXERCISE_TEXTFIELD_NAME)
         update_element(CURRENT_EXERCISE_TEXTFIELD_NAME, split(event_list[cur_event_nr], EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__CURRENT_TEXT])
-        do_log("update " .. NEXT_EXERCISE_TEXTFIELD_NAME)
+        do_log_debug("update " .. NEXT_EXERCISE_TEXTFIELD_NAME)
         update_element(NEXT_EXERCISE_TEXTFIELD_NAME, split(event_list[cur_event_nr], EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__NEXT_TEXT])
     end
-    do_log("set_time_text() done ")
+    do_log_debug("set_time_text() done ")
     last_cur_seconds = cur_seconds
 end
 
 function timer_callback()
-    do_log("timer_callback () start")
+    do_log_debug("timer_callback () start")
     cur_seconds = cur_seconds - 1
 
-    do_log("event nr " .. cur_event_nr .. "/" .. array_length(event_list))
+    do_log_debug("info","event nr " .. cur_event_nr .. "/" .. array_length(event_list))
+
+    do_log_debug("event nr " .. cur_event_nr .. "/" .. array_length(event_list))
 
     if cur_seconds < 0 then
         cur_event_nr = cur_event_nr + 1
-
         if array_length(event_list) == cur_event_nr - 1 then
-            do_log("finish")
+
             obs.remove_current_callback()
             obs.timer_remove(timer_callback)
-
+            do_log_info("finish")
             return
         end
-
-        do_log("split event nr " .. cur_event_nr .. " -- " .. event_list[cur_event_nr])
+        do_log_info("new event {" .. event_list[cur_event_nr].."}" )
+        do_log_debug("split event nr " .. cur_event_nr .. " -- " .. event_list[cur_event_nr])
 
         cur_seconds = getSecondsOfCurrentEvent()
         set_tricampItems_visible(getVisibilityOfCurrentEvent())
     end
-    do_log("call setTimeText")
+    do_log_debug("call setTimeText")
     set_time_text()
 
 end
@@ -121,7 +125,7 @@ function tovisibiltytext(str)
 end
 
 function activate(activating)
-    do_log("activate(" .. tostring(activating) .. ") activated=" .. tostring(activated))
+    do_log_debug("activate(" .. tostring(activating) .. ") activated=" .. tostring(activated))
     if activated == activating then
         return
     end
@@ -142,10 +146,13 @@ function restart()
     cur_seconds = getSecondsOfCurrentEvent()
     activate(false)
     activate(true)
+    do_log_info("Re-(Start)")
+    do_log_info("new event {" .. event_list[cur_event_nr].."}" )
+
 end
 
 function pause(pressed)
-    do_log("pause ( " .. tostring(pressed) .. ")")
+    do_log_debug("pause ( " .. tostring(pressed) .. ")")
     activate(pressed)
     activate(not pressed)
 
@@ -181,7 +188,7 @@ end
 -- A function named script_properties defines the properties that the user
 -- can change for the entire script module itself
 function script_properties()
-    do_log("script_properties ()")
+    do_log_debug("script_properties ()")
 
     local props = obs.obs_properties_create()
 
@@ -213,10 +220,13 @@ end
 
 -- A function named script_update will be called when settings are changed
 function script_update(settings)
-    do_log("script_update (" .. tostring(settings) .. ")")
+    do_log_debug("script_update (" .. tostring(settings) .. ")")
     activate(false)
     events_text = obs.obs_data_get_string(settings, "events_text")
     event_list = split(events_text, EVENT_SEPARATOR)
+
+    local event = {name="x", bla="y"}
+    do_log_debug(event.name)
     cur_seconds = getSecondsOfCurrentEvent()
 end
 
@@ -226,7 +236,7 @@ end
 
 -- A function named script_defaults will be called to set the default settings
 function script_defaults(settings)
-    do_log("script_defaults (" .. tostring(settings) .. ")")
+    do_log_debug("script_defaults (" .. tostring(settings) .. ")")
     obs.obs_data_set_default_string(settings,
             "events_text",
             "5;show;1 Burbee;2 Burpees\r\n" ..
@@ -244,7 +254,7 @@ end
 -- case, a hotkey's save data).  Settings set via the properties are saved
 -- automatically.
 function script_save(settings)
-    do_log("script_save (" .. tostring(settings) .. ")")
+    do_log_debug("script_save (" .. tostring(settings) .. ")")
     --  local hotkey_save_array = obs.obs_hotkey_save(hotkey_id)
     -- obs.obs_data_set_array(settings, "reset_hotkey", hotkey_save_array)
     -- obs.obs_data_array_release(hotkey_save_array)
@@ -260,7 +270,7 @@ function script_load(settings)
     -- disconnect callbacks that are intended to last until the script is
     -- unloaded.
 
-    do_log("script_load (" .. tostring(settings) .. ")")
+    do_log_debug("script_load (" .. tostring(settings) .. ")")
     -- local sh = obs.obs_get_signal_handler()
     -- obs.signal_handler_connect(sh, "source_activate", source_activated)
     --obs.signal_handler_connect(sh, "source_deactivate", source_deactivated)
@@ -273,18 +283,18 @@ end
 
 function set_tricampItems_visible(visible)
 
-    do_log("set_tricampItems_visible (" .. tostring(visible) .. ")")
+    do_log_debug("set_tricampItems_visible (" .. tostring(visible) .. ")")
     local sceneSource = obs.obs_frontend_get_current_scene()
     local scene = obs.obs_scene_from_source(sceneSource)
-    -- do_log( "scene ".. scene)
+    -- do_log_debug( "scene ".. scene)
     local sceneitems = obs.obs_scene_enum_items(scene)
     for i, sceneitem in ipairs(sceneitems) do
         local itemsource = obs.obs_sceneitem_get_source(sceneitem)
         local isn = obs.obs_source_get_name(itemsource)
-        do_log("isn " .. isn)
-        do_log("TRICAMP_ITEMS_PREFIX " .. TRICAMP_ITEMS_PREFIX)
+        do_log_debug("isn " .. isn)
+        do_log_debug("TRICAMP_ITEMS_PREFIX " .. TRICAMP_ITEMS_PREFIX)
         if starts_with(isn, TRICAMP_ITEMS_PREFIX) then
-            do_log("set " .. isn .. "visible: " .. tostring(visible))
+            do_log_debug("set " .. isn .. "visible: " .. tostring(visible))
             obs.obs_sceneitem_set_visible(sceneitem, visible)
         end
     end
@@ -314,8 +324,19 @@ function starts_with(str, start)
     return str:sub(1, #start) == start
 end
 
-function do_log (str)
+function do_log_debug ( str)
+    if logDebugEnabled then
+        do_log(str)
+    end
+end
 
+function do_log_info ( str)
+    if logInfoEnabled then
+        do_log(str)
+    end
+end
+
+function do_log (str)
     if logEnabled then
         print(str)
     end
