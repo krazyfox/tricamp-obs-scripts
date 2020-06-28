@@ -1,7 +1,4 @@
--- TODOs
-
--- hotkeys
--- stream deck
+-- Version 1.0
 
 obs = obslua
 logEnabled = true
@@ -15,7 +12,11 @@ events_text = ""
 activated = false
 event_list = {}
 
-hotkey_id = obs.OBS_INVALID_HOTKEY_ID
+hotkey_id_show_all = obs.OBS_INVALID_HOTKEY_ID
+hotkey_id_hide_all = obs.OBS_INVALID_HOTKEY_ID
+hotkey_id_restart = obs.OBS_INVALID_HOTKEY_ID
+hotkey_id_play = obs.OBS_INVALID_HOTKEY_ID
+hotkey_id_pause = obs.OBS_INVALID_HOTKEY_ID
 
 TRICAMP_ITEMS_PREFIX = "tricamp"
 
@@ -166,7 +167,7 @@ function restart()
     for i = 1, array_length(eventsList) do
         local eventString = eventsList[i]
 
-        do_log_debug("do parse eventString ".. eventString)
+        do_log_debug("do parse eventString " .. eventString)
         event_list[i] = {
             seconds = getSecondsOfEvent(eventString),
             isVisible = tovisibiltytext(eventString),
@@ -186,11 +187,14 @@ function restart()
 
 end
 
-function pause(pressed)
-    do_log_debug("pause ( " .. tostring(pressed) .. ")")
-    activate(pressed)
-    activate(not pressed)
+function play()
+    activate(false)
+    activate(true)
+end
 
+function pause()
+    activate(true)
+    activate(false)
 end
 
 function restart_button_clicked(props, p)
@@ -199,22 +203,30 @@ function restart_button_clicked(props, p)
 end
 
 function pause_button_clicked(props, p)
-    pause(true)
+    pause()
     return false
 end
 
 function play_button_clicked(props, p)
-    pause(false)
+    play()
     return false
 end
 
 function hide_button_clicked(props, p)
-    set_tricampItems_visible(false)
+    hide_all()
     return false
 end
 
-function show_button_clicked(props, p)
+function hide_all()
+    set_tricampItems_visible(false)
+end
+
+function show_all()
     set_tricampItems_visible(true)
+end
+
+function show_button_clicked(props, p)
+    show_all()
     return false
 end
 
@@ -290,9 +302,19 @@ end
 -- automatically.
 function script_save(settings)
     do_log_debug("script_save (" .. tostring(settings) .. ")")
-    --  local hotkey_save_array = obs.obs_hotkey_save(hotkey_id)
-    -- obs.obs_data_set_array(settings, "reset_hotkey", hotkey_save_array)
-    -- obs.obs_data_array_release(hotkey_save_array)
+    saveHotkey(hotkey_id_hide_all, "hide_all_hotkey", settings)
+    saveHotkey(hotkey_id_show_all, "show_all_hotkey", settings)
+    saveHotkey(hotkey_id_pause, "pause_hotkey", settings)
+    saveHotkey(hotkey_id_play, "play_hotkey", settings)
+    saveHotkey(hotkey_id_restart, "restart_hotkey", settings)
+
+end
+
+function saveHotkey(hotkey_id, hotkey_key, settings)
+
+    local hotkey_save_array = obs.obs_hotkey_save(hotkey_id)
+    obs.obs_data_set_array(settings, hotkey_key, hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
 end
 
 -- a function named script_load will be called on startup
@@ -308,12 +330,34 @@ function script_load(settings)
     do_log_debug("script_load (" .. tostring(settings) .. ")")
     -- local sh = obs.obs_get_signal_handler()
     -- obs.signal_handler_connect(sh, "source_activate", source_activated)
-    --obs.signal_handler_connect(sh, "source_deactivate", source_deactivated)
+    -- obs.signal_handler_connect(sh, "source_deactivate", source_deactivated)
 
-    --hotkey_id = obs.obs_hotkey_register_frontend("reset_timer_thingy", "Reset Timer", reset)
-    --local hotkey_save_array = obs.obs_data_get_array(settings, "reset_hotkey")
-    --obs.obs_hotkey_load(hotkey_id, hotkey_save_array)
-    --obs.obs_data_array_release(hotkey_save_array)
+    hotkey_id_show_all = obs.obs_hotkey_register_frontend("show_all", "Tricamp Show all", show_all)
+    hotkey_id_hide_all = obs.obs_hotkey_register_frontend("hide_all", "Tricamp Hide all", hide_all)
+    hotkey_id_restart = obs.obs_hotkey_register_frontend("restart", "Tricamp Restart", restart)
+    hotkey_id_play = obs.obs_hotkey_register_frontend("play", "Tricamp Play", play)
+    hotkey_id_pause = obs.obs_hotkey_register_frontend("pause", "Tricamp Pause", pause)
+    do_log_debug("hotkey_id_hide_all (" .. hotkey_id_hide_all .. ")")
+    loadHotkey(hotkey_id_hide_all, "hide_all_hotkey", settings)
+    loadHotkey(hotkey_id_show_all, "show_all_hotkey", settings)
+    loadHotkey(hotkey_id_pause, "pause_hotkey", settings)
+    loadHotkey(hotkey_id_play, "play_hotkey", settings)
+    loadHotkey(hotkey_id_restart, "restart_hotkey", settings)
+
+end
+
+function loadHotkey(hotkey_id, hotkey_key, settings)
+
+    local hotkey_save_array = obs.obs_data_get_array(settings, hotkey_key)
+
+    if hotkey_save_array == nil then
+        do_log_debug("return loadHotkey (" .. hotkey_key .. ")")
+        return
+    end
+    do_log_debug("loadHotkey (" .. hotkey_id .. ", " .. hotkey_key .. ")")
+
+    obs.obs_hotkey_load(hotkey_id, hotkey_save_array)
+    obs.obs_data_array_release(hotkey_save_array)
 end
 
 function set_tricampItems_visible(visible)
