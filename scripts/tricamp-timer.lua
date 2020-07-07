@@ -1,4 +1,7 @@
+-- Version 1.1
+-- fixed validation on restart
 -- Version 1.0
+
 
 obs = obslua
 logEnabled = true
@@ -11,6 +14,7 @@ last_cur_seconds = ""
 events_text = ""
 activated = false
 event_list = {}
+inErrorState =false
 
 hotkey_id_show_all = obs.OBS_INVALID_HOTKEY_ID
 hotkey_id_hide_all = obs.OBS_INVALID_HOTKEY_ID
@@ -115,9 +119,8 @@ function tovisibiltytext(event)
     if (str == "hide") then
         return false
     end
-
-    do_log(str .. " is not valid. Must be show or hide")
-
+    inErrorState=true
+    error(str .. " is not valid. Must be show or hide")
 end
 
 function getCurrentEvent()
@@ -160,6 +163,7 @@ function activate(activating)
 end
 
 function restart()
+    inErrorState =false
     do_log_info("Re-(Start)")
 
     event_list = {}
@@ -175,15 +179,21 @@ function restart()
             nextExercise = toNextExerciseText(eventString)
         }
     end
-    do_log_info("Events are valid.")
+    if  inErrorState then
+        do_log_info("Events are not valid.")
+        activate(false)
+    else
+        do_log_info("Events are valid.")
+        cur_event_nr = 1
+        cur_seconds = getCurrentEvent().seconds
 
-    cur_event_nr = 1
-    cur_seconds = getCurrentEvent().seconds
+        activate(false)
+        activate(true)
 
-    activate(false)
-    activate(true)
+        do_log_info("new event {" .. getCurrentEvent().currentExercise .. "}")
+    end
 
-    do_log_info("new event {" .. getCurrentEvent().currentExercise .. "}")
+
 
 end
 
@@ -278,7 +288,12 @@ function getSecondsOfCurrentEvent ()
 end
 
 function getSecondsOfEvent (event)
-    return tonumber(split(event, EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__SECONDS])
+    local seconds = tonumber(split(event, EVENT_ITEM_SEPARATOR)[EVENT_ITEM_POSITION__SECONDS])
+    if (seconds == nil)then
+        inErrorState=true
+        error(event .. " is not valid. Seconds must be a number.")
+    end
+    return seconds
 end
 
 -- A function named script_defaults will be called to set the default settings
@@ -373,7 +388,7 @@ function set_tricampItems_visible(visible)
         do_log_debug("isn " .. isn)
         do_log_debug("TRICAMP_ITEMS_PREFIX " .. TRICAMP_ITEMS_PREFIX)
         if starts_with(isn, TRICAMP_ITEMS_PREFIX) then
-            do_log_debug("set " .. isn .. "visible: " .. tostring(visible))
+            do_log_debug("set " .. isn .. " visible: " .. tostring(visible))
             obs.obs_sceneitem_set_visible(sceneitem, visible)
         end
     end
